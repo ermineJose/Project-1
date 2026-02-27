@@ -1,0 +1,193 @@
+==================================================
+  ARM64 Boot & Memory Explorer
+  Kernel has handed control to init!
+==================================================
+
+[BOOT] Kernel version: Linux version 6.1.0-42-arm64 (debian-kernel@lists.debian.org) (gcc-12 (Debian 12.2.0-14+deb12u1) 12.2.0, GNU ld (GNU Binutils for Debian) 2.40) #1 SMP Debian 6.1.159-1 (2025-12-30)
+[BOOT] CPU: processor	: 0
+[BOOT] Memory:
+              total        used        free      shared  buff/cache   available
+Mem:            475          12         454           2           9         454
+Swap:             0           0           0
+[BOOT] Cmdline: console=ttyAMA0 rdinit=/init-auto loglevel=3
+
+
+========================================================
+  ARM64 Memory Layout Explorer
+========================================================
+
+=== PHYSICAL MEMORY MAP (What the hardware provides) ===
+
+This shows PHYSICAL memory - the actual RAM chips and
+hardware devices, with their real addresses.
+
+Think of it like a map of a shopping mall showing which
+stores are on which floor:
+
+09000000-09000fff : pl011@9000000
+  09000000-09000fff : 9000000.pl011 pl011@9000000
+09010000-09010fff : pl031@9010000
+  09010000-09010fff : rtc-pl031
+09030000-09030fff : pl061@9030000
+  09030000-09030fff : 9030000.pl061 pl061@9030000
+10000000-3efeffff : pcie@10000000
+  10000000-1007ffff : 0000:00:01.0
+  10080000-10080fff : 0000:00:01.0
+40000000-5fffffff : System RAM
+  40210000-4184ffff : Kernel code
+  41850000-41e9ffff : reserved
+  41ea0000-421fffff : Kernel data
+  48000000-480f2fff : reserved
+  48200000-482fffff : reserved
+  5b5c0000-5fdfffff : reserved
+  5fe2c000-5feacfff : reserved
+  5fead000-5fecbfff : reserved
+  5fece000-5fed0fff : reserved
+  5fed1000-5fef4fff : reserved
+  5fef5000-5fefdfff : reserved
+  5fefe000-5fffffff : reserved
+4010000000-401fffffff : PCI ECAM
+8000000000-ffffffffff : pcie@10000000
+  8000000000-8000003fff : 0000:00:01.0
+
+=== OUR PROCESS'S VIRTUAL MEMORY MAP ===
+
+This shows how OUR process sees memory. Each line is a
+region of virtual addresses and what it's used for.
+
+Columns: start-end permissions offset dev inode name
+  r = readable    w = writable
+  x = executable  p = private  s = shared
+
+00400000-005b3000 r-xp 00000000 00:02 23                                 /bin/busybox
+005c9000-005d0000 r--p 001b9000 00:02 23                                 /bin/busybox
+005d0000-005d3000 rw-p 001c0000 00:02 23                                 /bin/busybox
+005d3000-005da000 rw-p 00000000 00:00 0 
+0fcc7000-0fce9000 rw-p 00000000 00:00 0                                  [heap]
+ffff8e8eb000-ffff8e8fb000 rw-p 00000000 00:00 0 
+ffff8e8fb000-ffff8e8fd000 r--p 00000000 00:00 0                          [vvar]
+ffff8e8fd000-ffff8e8fe000 r-xp 00000000 00:00 0                          [vdso]
+fffffcdb2000-fffffcdd3000 rw-p 00000000 00:00 0                          [stack]
+
+=== VIRTUAL -> PHYSICAL ADDRESS TRANSLATION ===
+
+This shows how virtual addresses map to physical pages.
+Each page is typically 4KB (4096 bytes).
+
+The 'pagemap' file lets us peek at the page table entries
+the MMU uses to translate addresses.
+
+Process PID: 84
+
+Reading page table entries for key memory regions...
+
+Region: 0x00400000-0x005b3000 r-xp /bin/busybox
+
+Region: 0x005c9000-0x005d0000 r--p /bin/busybox
+
+Region: 0x005d0000-0x005d3000 rw-p /bin/busybox
+
+Region: 0x005d3000-0x005da000 rw-p [anon]
+
+Region: 0x2a9e3000-0x2aa05000 rw-p [heap]
+
+Region: 0xffffa7b4e000-0xffffa7b50000 r--p [vvar]
+
+Region: 0xffffa7b50000-0xffffa7b51000 r-xp [vdso]
+
+Region: 0xffffeed71000-0xffffeed92000 rw-p [stack]
+
+
+=== KERNEL MEMORY SECTIONS ===
+
+These are the kernel's own memory regions.
+The kernel lives in the high part of virtual memory
+(addresses starting with ffff... on ARM64).
+
+Kernel symbol address ranges:
+  First symbol: ffffaaa101e10000 t bcm2835_handle_irq
+  Last symbol:  ffffaaa1034c6264 T _einittext
+
+Key kernel sections:
+ffffaaa101e10000 T _stext
+ffffaaa101e1029c T __irqentry_text_end
+ffffaaa101e102c8 T __softirqentry_text_end
+ffffaaa101e14348 T __entry_text_end
+ffffaaa101e16eb0 T kernel_neon_end
+ffffaaa101e18560 T __efi_fpsimd_end
+ffffaaa101e3f800 t __trans_pgd_stub_vectors_end
+ffffaaa101e495c0 t kvm_mmu_notifier_invalidate_range_end
+ffffaaa101e4dd20 T kvm_mmu_invalidate_end
+ffffaaa101e86f64 t abort_guest_exit_end
+ffffaaa101e8f410 T set_task_stack_end_magic
+ffffaaa101e97844 W arch_thaw_secondary_cpus_end
+ffffaaa101eb7550 T __traceiter_workqueue_execute_end
+ffffaaa101eb7a60 t trace_event_raw_event_workqueue_execute_end
+ffffaaa101eb7c70 t trace_raw_output_workqueue_execute_end
+ffffaaa101eb7d20 t __bpf_trace_workqueue_execute_end
+ffffaaa101eb8df4 t perf_trace_workqueue_execute_end
+ffffaaa101ed0eb0 T __traceiter_sched_kthread_work_execute_end
+ffffaaa101ed2260 t trace_event_raw_event_sched_kthread_work_execute_end
+ffffaaa101ed2d30 t trace_raw_output_sched_kthread_work_execute_end
+
+  _stext to _etext   = Kernel code (executable instructions)
+  _sdata to _edata   = Kernel data (global variables)
+  __bss_start to _end = Kernel BSS (uninitialized data, zeroed)
+
+=== ARM64 MMU CONFIGURATION ===
+
+Page size: 4096 bytes
+
+ARM64 uses a multi-level page table:
+
+  Virtual Address (48-bit)
+  |
+  +--[47:39]---> Level 0 table (PGD) - 512 entries
+       |
+       +--[38:30]---> Level 1 table (PUD) - 512 entries
+            |
+            +--[29:21]---> Level 2 table (PMD) - 512 entries
+                 |
+                 +--[20:12]---> Level 3 table (PTE) - 512 entries
+                      |
+                      +--[11:0]----> Page offset (4KB page)
+
+Think of it like a library:
+  Level 0 = Building    (which building?)
+  Level 1 = Floor       (which floor?)
+  Level 2 = Shelf       (which shelf?)
+  Level 3 = Book        (which book?)
+  Offset  = Page number (which page in the book?)
+
+
+=== MEMORY SUMMARY ===
+
+MemTotal:         486728 kB
+MemFree:          464412 kB
+MemAvailable:     464716 kB
+Buffers:               0 kB
+Cached:             1820 kB
+SwapCached:            0 kB
+Active:             1544 kB
+Inactive:            476 kB
+Active(anon):       1544 kB
+Inactive(anon):      476 kB
+Active(file):          0 kB
+Inactive(file):        0 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:             0 kB
+
+========================================================
+  Exploration complete!
+  Run 'cat /proc/self/maps' anytime to see memory layout
+  Run 'cat /proc/iomem' to see physical memory map
+========================================================
+
+
+
+BusyBox v1.35.0 (Debian 1:1.35.0-4+b7) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+/bin/sh: can't access tty; job control turned off
+/ # [6nqemu-system-aarch64: terminating on signal 15 from pid 118153 (timeout)

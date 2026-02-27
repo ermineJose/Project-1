@@ -1,0 +1,24 @@
+#!/bin/sh
+# Auto-run version: runs explore_memory automatically then drops to shell
+
+mount -t proc    proc    /proc
+mount -t sysfs   sysfs   /sys
+mount -t devtmpfs devtmpfs /dev
+
+echo "=================================================="
+echo "  ARM64 Boot & Memory Explorer"
+echo "  Kernel has handed control to init!"
+echo "=================================================="
+echo ""
+echo "[BOOT] Kernel version: $(cat /proc/version)"
+echo "[BOOT] CPU: $(head -1 /proc/cpuinfo)"
+echo "[BOOT] Memory:"
+free -m
+echo "[BOOT] Cmdline: $(cat /proc/cmdline)"
+echo ""
+
+# Auto-run memory explorer
+/bin/explore_memory
+
+# Drop to shell
+exec /bin/sh

@@ -1,0 +1,44 @@
+#!/bin/sh
+# =============================================================
+# init - The FIRST program the Linux kernel runs after booting
+# =============================================================
+#
+# LAYMAN'S EXPLANATION:
+# When you turn on a computer, the kernel (the core of the OS)
+# loads into memory and starts running. The VERY FIRST thing it
+# does after setting itself up is run this "init" script.
+#
+# Think of it like: the kernel builds the house, then init is
+# the first person to walk in and turn on all the lights.
+# =============================================================
+
+echo "=================================================="
+echo "  ARM64 Boot & Memory Explorer"
+echo "  Kernel has handed control to init!"
+echo "=================================================="
+
+# Mount essential virtual filesystems
+# These aren't real disks - they're windows into the kernel's brain
+mount -t proc    proc    /proc    # Process info (like a task manager)
+mount -t sysfs   sysfs   /sys     # Hardware/device info
+mount -t devtmpfs devtmpfs /dev   # Device files (keyboard, disk, etc.)
+
+echo ""
+echo "[BOOT] Virtual filesystems mounted"
+echo "[BOOT] Kernel version: $(cat /proc/version)"
+echo "[BOOT] CPU info:"
+head -5 /proc/cpuinfo
+echo ""
+echo "[BOOT] Memory info:"
+free -m 2>/dev/null || cat /proc/meminfo | head -5
+echo ""
+echo "[BOOT] Kernel command line: $(cat /proc/cmdline)"
+echo ""
+
+echo "=================================================="
+echo "  Type 'explore_memory' to run the memory explorer"
+echo "  Type 'sh' for a shell"
+echo "=================================================="
+
+# Start a shell so we can interact
+exec /bin/sh

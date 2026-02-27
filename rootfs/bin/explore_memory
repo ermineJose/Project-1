@@ -1,0 +1,176 @@
+#!/bin/sh
+# =============================================================
+# explore_memory - Explore ARM64 memory layout from inside the guest
+# =============================================================
+#
+# WHAT THIS DOES:
+# Shows you how the kernel organizes memory - what lives where,
+# what permissions each region has, and how virtual addresses
+# map to physical addresses.
+#
+# Think of it like getting a blueprint of the apartment building
+# showing which floors are for residents, which are for storage,
+# and which doors are locked.
+# =============================================================
+
+echo ""
+echo "========================================================"
+echo "  ARM64 Memory Layout Explorer"
+echo "========================================================"
+
+# -------------------------------------------------------
+# 1. MEMORY REGIONS (from /proc/iomem)
+# -------------------------------------------------------
+echo ""
+echo "=== PHYSICAL MEMORY MAP (What the hardware provides) ==="
+echo ""
+echo "This shows PHYSICAL memory - the actual RAM chips and"
+echo "hardware devices, with their real addresses."
+echo ""
+echo "Think of it like a map of a shopping mall showing which"
+echo "stores are on which floor:"
+echo ""
+if [ -f /proc/iomem ]; then
+    cat /proc/iomem 2>/dev/null || echo "(Need root to see full map)"
+else
+    echo "/proc/iomem not available"
+fi
+
+# -------------------------------------------------------
+# 2. VIRTUAL MEMORY MAP of init process (us!)
+# -------------------------------------------------------
+echo ""
+echo "=== OUR PROCESS'S VIRTUAL MEMORY MAP ==="
+echo ""
+echo "This shows how OUR process sees memory. Each line is a"
+echo "region of virtual addresses and what it's used for."
+echo ""
+echo "Columns: start-end permissions offset dev inode name"
+echo "  r = readable    w = writable"
+echo "  x = executable  p = private  s = shared"
+echo ""
+cat /proc/self/maps
+
+# -------------------------------------------------------
+# 3. PAGE TABLE WALK (VA -> PA translation)
+# -------------------------------------------------------
+echo ""
+echo "=== VIRTUAL -> PHYSICAL ADDRESS TRANSLATION ==="
+echo ""
+echo "This shows how virtual addresses map to physical pages."
+echo "Each page is typically 4KB (4096 bytes)."
+echo ""
+echo "The 'pagemap' file lets us peek at the page table entries"
+echo "the MMU uses to translate addresses."
+echo ""
+
+# Read our own pagemap to show VA->PA translation
+if [ -f /proc/self/pagemap ]; then
+    echo "Process PID: $$"
+    echo ""
+    echo "Reading page table entries for key memory regions..."
+    echo ""
+
+    # Show mappings for the first few regions
+    while IFS= read -r line; do
+        start_addr=$(echo "$line" | awk '{print $1}' | cut -d'-' -f1)
+        end_addr=$(echo "$line" | awk '{print $1}' | cut -d'-' -f2)
+        perms=$(echo "$line" | awk '{print $2}')
+        name=$(echo "$line" | awk '{print $6}')
+        [ -z "$name" ] && name="[anon]"
+
+        echo "Region: 0x${start_addr}-0x${end_addr} ${perms} ${name}"
+
+        # Convert hex start address to decimal for pagemap offset
+        start_dec=$(printf "%d" "0x${start_addr}" 2>/dev/null)
+        if [ -n "$start_dec" ]; then
+            page_num=$((start_dec / 4096))
+            offset=$((page_num * 8))
+            # Read 8 bytes from pagemap at the computed offset
+            entry=$(hexdump -s "$offset" -n 8 -e '1/8 "%016x\n"' /proc/self/pagemap 2>/dev/null)
+            if [ -n "$entry" ]; then
+                # Bit 63 = present, bits 0-54 = PFN (physical frame number)
+                present=$((0x${entry} >> 63))
+                if [ "$present" = "1" ]; then
+                    pfn_mask="7fffffffffffff"
+                    pfn=$(printf "%d" "0x$(echo "$entry" | tail -c 15 | head -c 14)" 2>/dev/null)
+                    pa=$((pfn * 4096))
+                    echo "  VA 0x${start_addr} -> PA 0x$(printf '%x' $pa) (page present)"
+                else
+                    echo "  VA 0x${start_addr} -> (page NOT in physical memory - swapped or not yet accessed)"
+                fi
+            fi
+        fi
+        echo ""
+    done < /proc/self/maps
+else
+    echo "/proc/self/pagemap not available"
+fi
+
+# -------------------------------------------------------
+# 4. KERNEL MEMORY SECTIONS
+# -------------------------------------------------------
+echo ""
+echo "=== KERNEL MEMORY SECTIONS ==="
+echo ""
+echo "These are the kernel's own memory regions."
+echo "The kernel lives in the high part of virtual memory"
+echo "(addresses starting with ffff... on ARM64)."
+echo ""
+if [ -f /proc/kallsyms ]; then
+    echo "Kernel symbol address ranges:"
+    echo "  First symbol: $(head -1 /proc/kallsyms)"
+    echo "  Last symbol:  $(tail -1 /proc/kallsyms)"
+    echo ""
+    echo "Key kernel sections:"
+    grep -E "_stext|_etext|_sdata|_edata|__bss_start|__bss_stop|_end" /proc/kallsyms 2>/dev/null | head -20
+    echo ""
+    echo "  _stext to _etext   = Kernel code (executable instructions)"
+    echo "  _sdata to _edata   = Kernel data (global variables)"
+    echo "  __bss_start to _end = Kernel BSS (uninitialized data, zeroed)"
+fi
+
+# -------------------------------------------------------
+# 5. ARM64 SPECIFIC: Page size and VA width
+# -------------------------------------------------------
+echo ""
+echo "=== ARM64 MMU CONFIGURATION ==="
+echo ""
+echo "Page size: $(getconf PAGESIZE 2>/dev/null || echo '4096') bytes"
+echo ""
+echo "ARM64 uses a multi-level page table:"
+echo ""
+echo "  Virtual Address (48-bit)"
+echo "  |"
+echo "  +--[47:39]---> Level 0 table (PGD) - 512 entries"
+echo "       |"
+echo "       +--[38:30]---> Level 1 table (PUD) - 512 entries"
+echo "            |"
+echo "            +--[29:21]---> Level 2 table (PMD) - 512 entries"
+echo "                 |"
+echo "                 +--[20:12]---> Level 3 table (PTE) - 512 entries"
+echo "                      |"
+echo "                      +--[11:0]----> Page offset (4KB page)"
+echo ""
+echo "Think of it like a library:"
+echo "  Level 0 = Building    (which building?)"
+echo "  Level 1 = Floor       (which floor?)"
+echo "  Level 2 = Shelf       (which shelf?)"
+echo "  Level 3 = Book        (which book?)"
+echo "  Offset  = Page number (which page in the book?)"
+echo ""
+
+# -------------------------------------------------------
+# 6. MEMORY SUMMARY
+# -------------------------------------------------------
+echo ""
+echo "=== MEMORY SUMMARY ==="
+echo ""
+cat /proc/meminfo | head -15
+echo ""
+echo "========================================================"
+echo "  Exploration complete!"
+echo "  Run 'cat /proc/self/maps' anytime to see memory layout"
+echo "  Run 'cat /proc/iomem' to see physical memory map"
+echo "========================================================"
+echo ""
